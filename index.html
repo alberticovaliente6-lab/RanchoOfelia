@@ -1827,7 +1827,6 @@
     function req(fields) { for (const [id, label] of fields) { if (!val(id)) { toast(`Falta: ${label}`, true); document.getElementById(id)?.focus(); return false; } } return true; }
     function esc(s) { return String(s ?? "").replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch])); }
     function byDateDesc(a, b) { return String(b.Fecha || b.FechaRegistro || b.FechaProgramada || b.FechaVenta || "").localeCompare(String(a.Fecha || a.FechaRegistro || a.FechaProgramada || a.FechaVenta || "")); }
-    function shouldUseJsonpFallback(action) { return action !== "syncBatch"; }
     function unwrapApiResponse(data) {
       if (data && data.ok === false) throw new Error(data.error || "Error del backend");
       return Object.prototype.hasOwnProperty.call(data || {}, "data") ? data.data : data;
@@ -1858,14 +1857,8 @@
     async function api(action, payload = {}, opts = {}) {
       if (!RANCHO_API.URL) { return demoApi(action, payload); }
       try {
-        const res = await fetch(RANCHO_API.URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action, payload }) });
-        const data = await res.json();
-        return unwrapApiResponse(data);
+        return unwrapApiResponse(await apiJsonp(action, payload));
       } catch (err) {
-        if (shouldUseJsonpFallback(action)) {
-          try { return unwrapApiResponse(await apiJsonp(action, payload)); }
-          catch (jsonpErr) { err = jsonpErr; }
-        }
         if (opts.queue) { queueOp(action, payload); const local = await demoApi(action, payload); toast("Guardado offline. Se sincronizará después."); return local; }
         const cached = localStorage.getItem(CACHE_KEY);
         if (action === "getAppData" && cached) { toast("Mostrando último caché local", true); return JSON.parse(cached); }
